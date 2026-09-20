@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#f5f5f7">
+  <meta name="description" content="查看短線關注清單，或查詢中長期持有狀態。">
+  <title>台股訊號查詢</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='15' fill='%23ffffff'/%3E%3Cpath d='M13 42l12-13 9 8 17-19' fill='none' stroke='%230071e3' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='51' cy='18' r='5' fill='%230071e3'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f5f7;
+      --panel: #ffffff;
+      --panel-2: #fbfbfd;
+      --line: #e5e5ea;
+      --line-strong: #d2d2d7;
+      --text: #1d1d1f;
+      --muted: #6e6e73;
+      --mint: #0071e3;
+      --amber: #9a6700;
+      --danger: #d70015;
+      --blue: #0071e3;
+      --radius: 22px;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Noto Sans TC", Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background: var(--bg);
+    }
+    button, input { font: inherit; }
+    .shell { width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 56px; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 52px; }
+    .brand { display: flex; align-items: center; gap: 12px; font-weight: 750; letter-spacing: .03em; }
+    .brand-mark { width: 34px; height: 34px; border: 1px solid var(--line-strong); border-radius: 10px; display: grid; place-items: center; color: var(--mint); background: rgba(88,243,186,.06); }
+    .asof { color: var(--muted); font-size: .85rem; font-variant-numeric: tabular-nums; }
+    main { display: grid; gap: 22px; }
+    .intro { max-width: 780px; }
+    .eyebrow { color: var(--mint); font-size: .78rem; font-weight: 760; letter-spacing: .16em; text-transform: uppercase; }
+    h1 { font-size: clamp(2.35rem, 7vw, 5.8rem); line-height: .95; letter-spacing: -.065em; margin: 10px 0 18px; font-weight: 780; }
+    .lead { margin: 0; color: var(--muted); font-size: 1rem; line-height: 1.7; max-width: 660px; }
+    .search-wrap { position: relative; margin-top: 28px; max-width: 760px; }
+    .search-bar { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 8px; border: 1px solid var(--line-strong); border-radius: 18px; background: rgba(6, 15, 13, .86); box-shadow: 0 20px 70px rgba(0,0,0,.28); }
+    .search-bar:focus-within { border-color: rgba(88,243,186,.68); box-shadow: 0 0 0 4px rgba(88,243,186,.09), 0 20px 70px rgba(0,0,0,.28); }
+    input { width: 100%; min-width: 0; background: transparent; color: var(--text); border: 0; outline: 0; padding: 13px 14px; font-size: 1.08rem; }
+    input::placeholder { color: #667d75; }
+    .search-btn { border: 0; border-radius: 12px; padding: 0 22px; background: var(--mint); color: #062019; font-weight: 800; cursor: pointer; }
+    .search-btn:hover { filter: brightness(1.06); }
+    .search-btn:focus-visible, .suggestion:focus-visible { outline: 3px solid rgba(114,183,255,.68); outline-offset: 2px; }
+    .suggestions { position: absolute; z-index: 5; top: calc(100% + 8px); left: 0; right: 0; padding: 7px; border: 1px solid var(--line-strong); border-radius: 15px; background: #0b1714; box-shadow: 0 20px 60px rgba(0,0,0,.5); display: none; }
+    .suggestions.open { display: grid; }
+    .suggestion { display: flex; justify-content: space-between; gap: 14px; width: 100%; border: 0; background: transparent; color: var(--text); padding: 11px 12px; border-radius: 10px; text-align: left; cursor: pointer; }
+    .suggestion:hover { background: rgba(88,243,186,.08); }
+    .suggestion small { color: var(--muted); }
+    .summary { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; color: var(--muted); font-size: .82rem; }
+    .summary span { border: 1px solid var(--line); border-radius: 999px; padding: 7px 10px; background: rgba(255,255,255,.02); }
+    .shortlist-panel { border: 1px solid var(--line); background: rgba(11, 23, 20, .84); border-radius: var(--radius); padding: 22px; }
+    .section-head { display: flex; justify-content: space-between; gap: 18px; align-items: end; margin-bottom: 15px; }
+    .section-head h2 { font-size: 1.35rem; margin: 4px 0 0; }
+    .section-head p { margin: 0; color: var(--muted); font-size: .8rem; line-height: 1.5; text-align: right; }
+    .shortlist { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+    .shortlist-item { border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.025); color: var(--text); padding: 13px 14px; text-align: left; }
+    button.shortlist-item { cursor: pointer; }
+    button.shortlist-item:hover { border-color: rgba(88,243,186,.5); background: rgba(88,243,186,.055); }
+    .shortlist-item:focus-visible { outline: 3px solid rgba(114,183,255,.68); outline-offset: 2px; }
+    .shortlist-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+    .shortlist-code { color: var(--mint); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-weight: 760; }
+    .shortlist-rank { color: var(--amber); font-weight: 800; }
+    .shortlist-name { display: block; margin: 5px 0 9px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .price-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: auto; }
+    .price-cell { border-top: 1px solid var(--line); padding-top: 9px; }
+    .price-cell span { display: block; color: var(--muted); font-size: .75rem; margin-bottom: 3px; }
+    .price-cell strong { font-variant-numeric: tabular-nums; font-size: .94rem; }
+    .distance { color: var(--amber); }
+    #result { min-height: 250px; }
+    .result-shell { border: 1px solid var(--line); background: linear-gradient(145deg, rgba(16,31,28,.96), rgba(9,19,17,.94)); border-radius: var(--radius); overflow: hidden; box-shadow: 0 28px 90px rgba(0,0,0,.24); }
+    .result-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; padding: 26px 28px; border-bottom: 1px solid var(--line); }
+    .identity { display: flex; gap: 14px; align-items: center; }
+    .code { color: var(--mint); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 1.1rem; }
+    h2 { margin: 2px 0 0; font-size: 1.75rem; letter-spacing: -.03em; }
+    .market-tag { color: var(--muted); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font-size: .75rem; }
+    .quote { text-align: right; }
+    .quote strong { display: block; font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+    .quote small { color: var(--muted); }
+    .signal-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); }
+    .signal-card { background: var(--panel); padding: 25px 28px 27px; min-height: 190px; }
+    .card-kicker { color: var(--muted); font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; display: flex; justify-content: space-between; gap: 12px; }
+    .tier { color: var(--amber); }
+    .state { display: flex; align-items: center; gap: 10px; margin: 23px 0 12px; }
+    .state-icon { font-size: 1.7rem; line-height: 1; }
+    .state-label { font-size: 1.45rem; font-weight: 780; letter-spacing: -.025em; }
+    .meta-line { color: var(--muted); line-height: 1.55; font-size: .9rem; }
+    .chip-row { display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; margin-top: 17px; align-items: center; }
+    .chip-row span:nth-child(odd) { color: var(--muted); font-size: .82rem; }
+    .chip-row strong { font-size: 1rem; }
+    .legs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 19px 28px 24px; border-top: 1px solid var(--line); }
+    .leg { background: rgba(255,255,255,.025); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+    .leg span { color: var(--muted); font-size: .75rem; display: block; margin-bottom: 5px; }
+    .leg strong { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .notice { display: flex; gap: 10px; align-items: flex-start; color: var(--muted); font-size: .82rem; line-height: 1.6; padding: 0 2px; }
+    .notice b { color: var(--amber); font-weight: 700; }
+    .empty { display: grid; place-items: center; min-height: 250px; text-align: center; color: var(--muted); border: 1px dashed var(--line-strong); border-radius: var(--radius); padding: 30px; }
+    .empty strong { color: var(--text); display: block; margin-bottom: 8px; font-size: 1.15rem; }
+    footer { margin-top: 34px; padding-top: 22px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 20px; color: var(--muted); font-size: .78rem; }
+    @media (max-width: 780px) {
+      .shell { width: min(100% - 22px, 1120px); padding-top: 18px; }
+      header { margin-bottom: 36px; }
+      .asof { display: none; }
+      h1 { font-size: clamp(2.7rem, 16vw, 4.3rem); }
+      .search-bar { grid-template-columns: 1fr; }
+      .search-btn { min-height: 48px; }
+      .signal-grid { grid-template-columns: 1fr; }
+      .shortlist { grid-template-columns: 1fr; }
+      .section-head { align-items: flex-start; flex-direction: column; }
+      .section-head p { text-align: left; }
+      .signal-card { min-height: 0; }
+      .result-head { padding: 22px; }
+      .quote strong { font-size: 1.2rem; }
+      .legs { grid-template-columns: repeat(2, 1fr); padding: 18px 22px 22px; }
+      footer { flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      .result-shell { animation: rise .3s ease-out; }
+      @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+    }
+    [hidden] { display: none !important; }
+    header { margin-bottom: 28px; }
+    .workspace { display: grid; gap: 18px; }
+    .mode-tabs { width: fit-content; display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; padding: 5px; border: 1px solid var(--line); border-radius: 15px; background: rgba(6,15,13,.72); }
+    .mode-tab { min-height: 44px; border: 0; border-radius: 10px; padding: 0 18px; background: transparent; color: var(--muted); cursor: pointer; font-weight: 720; }
+    .mode-tab[aria-selected="true"] { color: #062019; background: var(--mint); }
+    .mode-tab:focus-visible { outline: 3px solid rgba(114,183,255,.68); outline-offset: 2px; }
+    .intro { max-width: none; display: grid; grid-template-columns: 1fr minmax(340px, 540px); gap: 28px; align-items: end; padding: 24px 0 8px; }
+    .intro-copy h1 { font-size: clamp(2.25rem, 5vw, 4.5rem); margin-bottom: 12px; }
+    .search-wrap { margin-top: 0; max-width: none; }
+    .summary { margin-top: 10px; }
+    .shortlist-panel { padding: 24px; }
+    .shortlist-item { min-height: 126px; display: flex; flex-direction: column; }
+    .shortlist-name { font-size: 1.02rem; margin-bottom: 14px; }
+    .mode-tools { min-width: 0; }
+    .result-shell.status-entry { --status: var(--mint); }
+    .result-shell.status-hold { --status: var(--blue); }
+    .result-shell.status-exit { --status: var(--danger); }
+    .result-shell.status-pending { --status: var(--amber); }
+    .result-shell.status-neutral { --status: var(--muted); }
+    .result-status { padding: 30px 28px; display: grid; grid-template-columns: minmax(220px, .8fr) 1.2fr; gap: 34px; align-items: center; }
+    .status-kicker { color: var(--muted); font-size: .82rem; margin-bottom: 9px; }
+    .status-label { margin: 0; color: var(--status); font-size: clamp(2rem, 5vw, 3.6rem); line-height: 1; letter-spacing: -.05em; }
+    .status-copy { margin: 13px 0 0; color: var(--muted); line-height: 1.6; }
+    .evidence { display: grid; gap: 9px; }
+    .evidence-row { display: flex; justify-content: space-between; gap: 18px; border: 1px solid var(--line); border-radius: 13px; padding: 13px 14px; background: rgba(255,255,255,.025); }
+    .evidence-row span { color: var(--muted); }
+    .evidence-row strong { text-align: right; }
+    .date-note { margin-top: 9px; color: var(--muted); font-size: .78rem; text-align: right; }
+    @media (max-width: 780px) {
+      .intro { grid-template-columns: 1fr; align-items: start; padding-top: 10px; }
+      .mode-tabs { width: 100%; }
+      .result-status { grid-template-columns: 1fr; gap: 24px; padding: 25px 22px; }
+      .date-note { text-align: left; }
+    }
+    /* Light, product-led visual system inspired by premium hardware interfaces. */
+    html { font-size: 18px; }
+    body { line-height: 1.5; }
+    .shell { width: min(1040px, calc(100% - 40px)); padding-top: 22px; }
+    header { min-height: 44px; padding: 0 2px 18px; border-bottom: 1px solid var(--line); }
+    .brand { font-weight: 650; letter-spacing: -.015em; }
+    .brand-mark { border: 0; color: var(--blue); background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 14px rgba(0,0,0,.05); }
+    .eyebrow { color: var(--blue); font-size: .88rem; letter-spacing: .08em; font-weight: 650; }
+    h1 { color: var(--text); font-weight: 700; letter-spacing: -.055em; }
+    .mode-tabs { border: 0; background: #e8e8ed; border-radius: 12px; padding: 4px; }
+    .mode-tab { min-height: 44px; border-radius: 9px; color: #515154; font-size: 1rem; font-weight: 600; }
+    .mode-tab[aria-selected="true"] { color: var(--text); background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+    .mode-tab:focus-visible, .search-btn:focus-visible, .suggestion:focus-visible, .row-link:focus-visible { outline: 3px solid rgba(0,113,227,.3); outline-offset: 2px; }
+    .intro { grid-template-columns: 1fr minmax(320px, 500px); padding-top: 30px; }
+    .lead { color: var(--muted); font-size: 1.08rem; }
+    .summary { font-size: .92rem; }
+    .summary span { border-color: var(--line); background: rgba(255,255,255,.66); }
+    .search-bar { border-color: var(--line-strong); background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+    .search-bar:focus-within { border-color: var(--blue); box-shadow: 0 0 0 4px rgba(0,113,227,.1); }
+    input::placeholder { color: #86868b; }
+    input { font-size: 1.08rem; }
+    .search-btn { color: #fff; background: var(--blue); font-size: 1rem; font-weight: 650; }
+    .suggestions { border-color: var(--line); background: rgba(255,255,255,.97); box-shadow: 0 16px 40px rgba(0,0,0,.14); backdrop-filter: blur(18px); }
+    .suggestion:hover { background: #f5f5f7; }
+    .shortlist-panel { border: 0; background: #fff; border-radius: 22px; padding: 28px 30px 12px; box-shadow: 0 2px 16px rgba(0,0,0,.055); }
+    .section-head { margin-bottom: 17px; }
+    .section-head h2 { font-size: 1.5rem; letter-spacing: -.025em; }
+    .section-head p { font-size: .96rem; }
+    .shortlist { display: block; overflow-x: auto; margin: 0 -8px; padding: 0 8px; }
+    .stock-table { width: 100%; min-width: 640px; table-layout: fixed; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+    .stock-table th { padding: 13px 14px; color: #6e6e73; border-bottom: 1px solid var(--line-strong); font-size: .9rem; font-weight: 650; letter-spacing: .02em; text-align: left; white-space: nowrap; }
+    .stock-table td { padding: 19px 14px; border-bottom: 1px solid var(--line); color: var(--text); font-size: 1.08rem; vertical-align: middle; }
+    .stock-table tbody tr:last-child td { border-bottom: 0; }
+    .stock-table .numeric { text-align: left; }
+    .stock-table .market-column { color: #86868b; text-align: left; white-space: nowrap; }
+    .short-table { min-width: 680px; }
+    .short-table col:nth-child(1) { width: 17%; }
+    .short-table col:nth-child(2) { width: 31%; }
+    .short-table col:nth-child(3), .short-table col:nth-child(4) { width: 18%; }
+    .short-table col:nth-child(5) { width: 16%; }
+    .long-table { min-width: 800px; }
+    .long-table col:nth-child(1) { width: 14%; }
+    .long-table col:nth-child(2) { width: 26%; }
+    .long-table col:nth-child(3), .long-table col:nth-child(4) { width: 15%; }
+    .long-table col:nth-child(5) { width: 17%; }
+    .long-table col:nth-child(6) { width: 13%; }
+    .stock-code { color: var(--blue); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 650; }
+    .stock-name { font-weight: 600; }
+    .row-link { appearance: none; border: 0; padding: 0; color: var(--blue); background: transparent; cursor: pointer; font: inherit; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 650; }
+    .row-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+    .distance { color: var(--amber); }
+    .result-shell { border-color: var(--line); background: #fff; box-shadow: 0 2px 16px rgba(0,0,0,.055); }
+    .code { color: var(--blue); }
+    .market-tag { background: #f5f5f7; font-size: .88rem; }
+    .quote small { font-size: .9rem; }
+    .status-kicker { font-size: .94rem; }
+    .status-copy { font-size: 1.04rem; }
+    .evidence-row { background: #fbfbfd; font-size: 1rem; }
+    .date-note { font-size: .88rem; }
+    .empty { background: rgba(255,255,255,.55); }
+    .notice { font-size: .94rem; }
+    .notice b { color: var(--text); }
+    footer { color: #6e6e73; font-size: .88rem; }
+    @media (max-width: 780px) {
+      .shell { width: min(100% - 24px, 1040px); }
+      .intro { padding-top: 18px; }
+      .shortlist-panel { padding: 22px 16px 8px; border-radius: 18px; }
+      .section-head { padding: 0 4px; }
+      .stock-table th, .stock-table td { padding-left: 11px; padding-right: 11px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div class="brand"><span class="brand-mark" aria-hidden="true">↗</span><span>台股訊號查詢</span></div>
+      <div class="asof" id="headerAsOf"></div>
+    </header>
+    <main class="workspace">
+      <div class="mode-tabs" role="tablist" aria-label="操作週期">
+        <button class="mode-tab" type="button" role="tab" aria-selected="true" data-mode="short">短線機會</button>
+        <button class="mode-tab" type="button" role="tab" aria-selected="false" data-mode="long">中長期持有</button>
+      </div>
+      <section class="intro">
+        <div class="intro-copy">
+          <div class="eyebrow" id="modeEyebrow">今日清單</div>
+          <h1 id="modeTitle">短線關注</h1>
+          <p class="lead" id="modeLead">今日符合短線條件的股票。</p>
+        </div>
+        <div class="mode-tools">
+          <div class="search-wrap" id="searchWrap">
+            <form class="search-bar" id="searchForm" role="search">
+              <input id="searchInput" autocomplete="off" inputmode="search" aria-label="股票代號或名稱" placeholder="查詢其他股票，例如 2330">
+              <button class="search-btn" type="submit">查詢</button>
+            </form>
+            <div class="suggestions" id="suggestions" role="listbox"></div>
+          </div>
+          <div class="summary" id="summary"></div>
+        </div>
+      </section>
+      <section class="shortlist-panel" id="shortPanel" aria-labelledby="shortlistTitle">
+        <div class="section-head">
+          <div><div class="eyebrow">今日符合</div><h2 id="shortlistTitle">短線關注清單</h2></div>
+          <p>收盤價與底價均為最新資料日數值。</p>
+        </div>
+        <div class="shortlist" id="shortlist"></div>
+      </section>
+      <section class="shortlist-panel" id="longPanel" aria-labelledby="longlistTitle" hidden>
+        <div class="section-head">
+          <div><div class="eyebrow">投信買盤支持</div><h2 id="longlistTitle">中長線可買進清單</h2></div>
+          <p>符合中長線趨勢與投信門檻，依綜合籌碼表現排序。</p>
+        </div>
+        <div class="shortlist" id="longlist"></div>
+      </section>
+      <section id="result" aria-live="polite"></section>
+      <div class="notice"><b>資料說明</b><span>收盤後更新。資料日期不同時不會列入清單；分類僅代表本策略目前狀態。</span></div>
+    </main>
+    <footer><span>策略分類不是個人化投資建議。</span></footer>
+  </div>
+  <script src="./data.js"></script>
+  <script>
+    (() => {
+      const dataset = window.SIGNAL_DATA || { meta: {}, stocks: [] };
+      const stocks = dataset.stocks || [];
+      const byCode = new Map(stocks.map(stock => [stock.code.toUpperCase(), stock]));
+      const input = document.querySelector('#searchInput');
+      const form = document.querySelector('#searchForm');
+      const result = document.querySelector('#result');
+      const suggestions = document.querySelector('#suggestions');
+      const shortlist = document.querySelector('#shortlist');
+      const longlist = document.querySelector('#longlist');
+      const shortPanel = document.querySelector('#shortPanel');
+      const longPanel = document.querySelector('#longPanel');
+      const searchWrap = document.querySelector('#searchWrap');
+      const meta = dataset.meta || {};
+      let activeMode = 'short';
+      let activeStock = null;
+
+      document.querySelector('#headerAsOf').textContent = `更新至 ${meta.technicalAsOf || '—'}`;
+
+      const esc = value => String(value ?? '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
+      const normalize = value => value.trim().toUpperCase().replace(/^TWSE:|^TPEX:/, '').replace(/\s+/g, '');
+
+      function findMatches(query) {
+        const q = normalize(query);
+        if (!q) return [];
+        return stocks.filter(stock => stock.code.toUpperCase().includes(q) || stock.name.includes(query.trim())).slice(0, 6);
+      }
+
+      function renderEmpty(title, body) {
+        result.innerHTML = `<div class="empty"><div><strong>${esc(title)}</strong>${esc(body)}</div></div>`;
+      }
+
+      function renderShortlist() {
+        const selected = (dataset.shortlist || []).map(code => byCode.get(code)).filter(Boolean);
+        shortlist.innerHTML = selected.length ? `<table class="stock-table short-table">
+          <colgroup><col><col><col><col><col></colgroup>
+          <thead><tr><th scope="col">代號</th><th scope="col">名稱</th><th scope="col" class="numeric">收盤價</th><th scope="col" class="numeric">底價</th><th scope="col" class="market-column">交易所</th></tr></thead>
+          <tbody>${selected.map(stock => `<tr>
+            <td class="stock-code">${esc(stock.code)}</td><td class="stock-name">${esc(stock.name || '名稱未載')}</td><td class="numeric">${esc(stock.close)}</td><td class="numeric">${esc(stock.shortFloor || '—')}</td><td class="market-column">${esc(stock.market)}</td>
+          </tr>`).join('')}</tbody>
+        </table>` : '<div class="meta-line">本期沒有符合條件的股票。</div>';
+      }
+
+      function renderLonglist() {
+        const selected = (dataset.longlist || []).map(code => byCode.get(code)).filter(Boolean);
+        longlist.innerHTML = selected.length ? `<table class="stock-table long-table">
+          <colgroup><col><col><col><col><col><col></colgroup>
+          <thead><tr><th scope="col">代號</th><th scope="col">名稱</th><th scope="col" class="numeric">收盤價</th><th scope="col" class="numeric">起漲點</th><th scope="col" class="numeric">距起漲點</th><th scope="col" class="market-column">交易所</th></tr></thead>
+          <tbody>${selected.map(stock => `<tr>
+            <td><button class="row-link" type="button" data-longlist-code="${esc(stock.code)}" aria-label="查看 ${esc(stock.code)} ${esc(stock.name || '')} 的中長期狀態">${esc(stock.code)}</button></td><td class="stock-name">${esc(stock.name || '名稱未載')}</td><td class="numeric">${esc(stock.close)}</td><td class="numeric">${esc(stock.longPriceAnchor.entry)}</td><td class="numeric distance">+${esc((stock.longPriceAnchor.premium * 100).toFixed(1))}%</td><td class="market-column">${esc(stock.market)}</td>
+          </tr>`).join('')}</tbody>
+        </table>` : '<div class="meta-line">本期沒有符合條件的股票。</div>';
+      }
+
+      function evidence(stock) {
+        return stock.evidence || { trend: '資料待更新', chip: '資料待更新' };
+      }
+
+      function renderStock(stock) {
+        activeStock = stock;
+        const ev = evidence(stock);
+        const state = stock.holding;
+        const copy = ({ entry: '目前符合進場條件。', hold: '技術尚未明顯轉弱，依本策略維持持有。', exit: '中長線技術條件處於弱勢；此判定不參考籌碼。', pending: '目前缺少同一資料日的完整判定。' }[state.key]);
+        result.innerHTML = `<div class="result-shell status-${esc(state.key)}">
+          <div class="result-head">
+            <div class="identity"><div><div class="code">${esc(stock.code)}</div><h2>${esc(stock.name || '名稱未載')}</h2></div><span class="market-tag">${esc(stock.market)} · ${esc(stock.kind)}</span></div>
+            <div class="quote"><strong>${esc(stock.close)}</strong><small>收盤價</small></div>
+          </div>
+          <div class="result-status">
+            <div><div class="status-kicker">中長期狀態</div><h3 class="status-label">${esc(state.label)}</h3><p class="status-copy">${esc(copy)}</p></div>
+            <div><div class="evidence"><div class="evidence-row"><span>趨勢狀態</span><strong>${esc(ev.trend)}</strong></div><div class="evidence-row"><span>籌碼狀態</span><strong>${esc(ev.chip)}</strong></div></div><div class="date-note">趨勢 ${esc(stock.asOf)} · 籌碼 ${esc(stock.chipAsOf || '無資料')}</div></div>
+          </div>
+        </div>`;
+        input.value = stock.code;
+        suggestions.classList.remove('open');
+        history.replaceState(null, '', `#${encodeURIComponent(stock.code)}`);
+      }
+
+      function setMode(mode) {
+        activeMode = mode;
+        document.querySelectorAll('[data-mode]').forEach(button => button.setAttribute('aria-selected', String(button.dataset.mode === mode)));
+        shortPanel.hidden = mode !== 'short';
+        longPanel.hidden = mode !== 'long';
+        searchWrap.hidden = mode !== 'long';
+        result.hidden = mode !== 'long';
+        document.querySelector('#modeEyebrow').textContent = mode === 'short' ? '今日清單' : '持股查詢';
+        document.querySelector('#modeTitle').textContent = mode === 'short' ? '短線關注' : '中長期狀態';
+        document.querySelector('#modeLead').textContent = mode === 'short' ? '今日符合短線條件的股票。' : '先看符合中長線條件的買進清單，也可查詢其他持股目前屬於買進、持有或出清。';
+        document.querySelector('#summary').innerHTML = mode === 'short'
+          ? `<span>${meta.shortlistCount || 0} 檔今日符合</span><span>更新至 ${esc(meta.technicalAsOf || '—')}</span>`
+          : `<span>${meta.longlistCount || 0} 檔可買進</span><span>${meta.coverage || 0} 檔可查詢</span><span>更新至 ${esc(meta.technicalAsOf || '—')}</span>`;
+        input.placeholder = '輸入持有股票，例如 2330';
+        if (mode === 'long' && activeStock) renderStock(activeStock);
+        else if (mode === 'long') renderEmpty('查詢持有狀態', '輸入股票代號或名稱。');
+        else suggestions.classList.remove('open');
+      }
+
+      function submitQuery() {
+        const query = input.value;
+        const exact = byCode.get(normalize(query));
+        if (exact) return renderStock(exact);
+        const matches = findMatches(query);
+        if (matches.length === 1) return renderStock(matches[0]);
+        renderEmpty('沒有唯一結果', matches.length ? '請從搜尋建議選擇股票。' : '此代號或名稱目前不在技術 universe。');
+      }
+
+      input.addEventListener('input', () => {
+        const matches = findMatches(input.value);
+        suggestions.innerHTML = matches.map(stock => `<button type="button" class="suggestion" data-code="${esc(stock.code)}" role="option"><span><b>${esc(stock.code)}</b> ${esc(stock.name)}</span><small>${esc(stock.market)}</small></button>`).join('');
+        suggestions.classList.toggle('open', matches.length > 0);
+      });
+      suggestions.addEventListener('click', event => {
+        const button = event.target.closest('[data-code]');
+        if (button) renderStock(byCode.get(button.dataset.code));
+      });
+      longlist.addEventListener('click', event => {
+        const button = event.target.closest('[data-longlist-code]');
+        if (button) renderStock(byCode.get(button.dataset.longlistCode));
+      });
+      document.querySelector('.mode-tabs').addEventListener('click', event => {
+        const button = event.target.closest('[data-mode]');
+        if (button) setMode(button.dataset.mode);
+      });
+      form.addEventListener('submit', event => { event.preventDefault(); submitQuery(); });
+      document.addEventListener('click', event => { if (!event.target.closest('.search-wrap')) suggestions.classList.remove('open'); });
+
+      renderShortlist();
+      renderLonglist();
+      const initial = decodeURIComponent(location.hash.slice(1));
+      if (initial && byCode.has(normalize(initial))) {
+        activeStock = byCode.get(normalize(initial));
+        input.value = activeStock.code;
+      }
+      setMode('short');
+    })();
+  </script>
+</body>
+</html>
