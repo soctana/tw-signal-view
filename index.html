@@ -286,6 +286,22 @@
       .result-head { grid-template-columns: 1fr; }
       .quote { text-align: left; }
     }
+    .long-workspace { display: grid; grid-template-columns: minmax(340px, .82fr) minmax(0, 1.45fr); gap: 18px; align-items: start; }
+    .query-panel { min-width: 0; display: grid; gap: 14px; position: sticky; top: 14px; }
+    .query-panel #result { min-height: 0; scroll-margin-top: 14px; }
+    .query-panel .empty { min-height: 250px; background: #fff; }
+    .query-panel .result-head { display: grid; grid-template-columns: 1fr auto; padding: 20px; }
+    .query-panel .result-status { grid-template-columns: 1fr; gap: 20px; padding: 22px 20px; }
+    .query-panel .status-label { font-size: clamp(2rem, 5vw, 3rem); }
+    .query-panel .evidence-row { align-items: flex-start; }
+    .query-panel .evidence-row strong { max-width: 58%; overflow-wrap: anywhere; }
+    .long-workspace .shortlist-panel { min-width: 0; }
+    .long-workspace .long-table { min-width: 560px; }
+    @media (max-width: 820px) {
+      .long-workspace { grid-template-columns: 1fr; }
+      .query-panel { position: static; }
+      .long-workspace .long-table { min-width: 0; }
+    }
   </style>
 </head>
 <body>
@@ -306,13 +322,6 @@
           <p class="lead" id="modeLead">近期符合短線條件的股票。</p>
         </div>
         <div class="mode-tools">
-          <div class="search-wrap" id="searchWrap">
-            <form class="search-bar" id="searchForm" role="search">
-              <input id="searchInput" autocomplete="off" inputmode="search" aria-label="股票代號或名稱" placeholder="查詢其他股票，例如 2330">
-              <button class="search-btn" type="submit">查詢</button>
-            </form>
-            <div class="suggestions" id="suggestions" role="listbox"></div>
-          </div>
           <div class="summary" id="summary"></div>
         </div>
       </section>
@@ -323,14 +332,25 @@
         </div>
         <div class="shortlist" id="shortlist"></div>
       </section>
-      <section class="shortlist-panel" id="longPanel" aria-labelledby="longlistTitle" hidden>
-        <div class="section-head">
-          <div><h2 id="longlistTitle">中長期正向清單</h2></div>
-          <p>多頭走勢並且籌碼正向。</p>
+      <div class="long-workspace" id="longWorkspace" hidden>
+        <div class="query-panel">
+          <div class="search-wrap" id="searchWrap">
+            <form class="search-bar" id="searchForm" role="search">
+              <input id="searchInput" autocomplete="off" inputmode="search" aria-label="股票代號或名稱" placeholder="查詢其他股票，例如 2330">
+              <button class="search-btn" type="submit">查詢</button>
+            </form>
+            <div class="suggestions" id="suggestions" role="listbox"></div>
+          </div>
+          <section id="result" aria-live="polite"></section>
         </div>
-        <div class="shortlist" id="longlist"></div>
-      </section>
-      <section id="result" aria-live="polite"></section>
+        <section class="shortlist-panel" id="longPanel" aria-labelledby="longlistTitle">
+          <div class="section-head">
+            <div><h2 id="longlistTitle">中長期正向清單</h2></div>
+            <p>多頭走勢並且籌碼正向。</p>
+          </div>
+          <div class="shortlist" id="longlist"></div>
+        </section>
+      </div>
     </main>
     <footer><span>策略分類不是個人化投資建議。</span></footer>
   </div>
@@ -347,8 +367,7 @@
       const shortlist = document.querySelector('#shortlist');
       const longlist = document.querySelector('#longlist');
       const shortPanel = document.querySelector('#shortPanel');
-      const longPanel = document.querySelector('#longPanel');
-      const searchWrap = document.querySelector('#searchWrap');
+      const longWorkspace = document.querySelector('#longWorkspace');
       const meta = dataset.meta || {};
       let activeMode = 'short';
       let activeStock = null;
@@ -364,8 +383,14 @@
         return stocks.filter(stock => stock.code.toUpperCase().includes(q) || stock.name.includes(query.trim())).slice(0, 6);
       }
 
-      function renderEmpty(title, body) {
+      function revealResult() {
+        const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+        requestAnimationFrame(() => result.scrollIntoView({ behavior, block: 'start' }));
+      }
+
+      function renderEmpty(title, body, reveal = false) {
         result.innerHTML = `<div class="empty"><div><strong>${esc(title)}</strong>${esc(body)}</div></div>`;
+        if (reveal) revealResult();
       }
 
       function renderShortlist() {
@@ -394,7 +419,7 @@
         return stock.evidence || { trend: '資料待更新', chip: '資料待更新' };
       }
 
-      function renderStock(stock) {
+      function renderStock(stock, reveal = false) {
         activeStock = stock;
         const ev = evidence(stock);
         const state = stock.holding;
@@ -413,15 +438,14 @@
         input.value = stock.code;
         suggestions.classList.remove('open');
         history.replaceState(null, '', `#${encodeURIComponent(stock.code)}`);
+        if (reveal) revealResult();
       }
 
       function setMode(mode) {
         activeMode = mode;
         document.querySelectorAll('[data-mode]').forEach(button => button.setAttribute('aria-selected', String(button.dataset.mode === mode)));
         shortPanel.hidden = mode !== 'short';
-        longPanel.hidden = mode !== 'long';
-        searchWrap.hidden = mode !== 'long';
-        result.hidden = mode !== 'long';
+        longWorkspace.hidden = mode !== 'long';
         document.querySelector('#modeEyebrow').textContent = mode === 'short' ? '近期清單' : '持股查詢';
         document.querySelector('#modeTitle').textContent = mode === 'short' ? '短線關注' : '中長期狀態';
         document.querySelector('#modeLead').textContent = mode === 'short' ? '近期符合短線條件的股票。' : '先看符合中長線條件的觀察清單，也可查詢其他持股目前屬於正向、繼續持有或出清。';
@@ -437,10 +461,10 @@
       function submitQuery() {
         const query = input.value;
         const exact = byCode.get(normalize(query));
-        if (exact) return renderStock(exact);
+        if (exact) return renderStock(exact, true);
         const matches = findMatches(query);
-        if (matches.length === 1) return renderStock(matches[0]);
-        renderEmpty('沒有唯一結果', matches.length ? '請從搜尋建議選擇股票。' : '此代號或名稱目前不在技術 universe。');
+        if (matches.length === 1) return renderStock(matches[0], true);
+        renderEmpty('沒有唯一結果', matches.length ? '請從搜尋建議選擇股票。' : '此代號或名稱目前不在技術 universe。', true);
       }
 
       input.addEventListener('input', () => {
@@ -450,11 +474,11 @@
       });
       suggestions.addEventListener('click', event => {
         const button = event.target.closest('[data-code]');
-        if (button) renderStock(byCode.get(button.dataset.code));
+        if (button) renderStock(byCode.get(button.dataset.code), true);
       });
       longlist.addEventListener('click', event => {
         const button = event.target.closest('[data-longlist-code]');
-        if (button) renderStock(byCode.get(button.dataset.longlistCode));
+        if (button) renderStock(byCode.get(button.dataset.longlistCode), true);
       });
       document.querySelector('.mode-tabs').addEventListener('click', event => {
         const button = event.target.closest('[data-mode]');
@@ -470,7 +494,7 @@
         activeStock = byCode.get(normalize(initial));
         input.value = activeStock.code;
       }
-      setMode('short');
+      setMode(activeStock ? 'long' : 'short');
     })();
   </script>
 </body>
